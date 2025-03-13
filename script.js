@@ -1,4 +1,3 @@
-// فتح أو إنشاء قاعدة بيانات
 let db;
 let request = indexedDB.open("UserDB", 1);
 
@@ -17,10 +16,11 @@ request.onsuccess = function (event) {
 };
 
 request.onerror = function () {
-  console.log("خطأ في فتح قاعدة البيانات");
+  console.log("Error opening database");
 };
 
-// إضافة مستخدم جديد
+let selectedUserId = null;
+
 function addUser() {
   let name = document.getElementById("username").value;
   if (name.trim() === "") return;
@@ -36,33 +36,38 @@ function addUser() {
   };
 }
 
-// عرض جميع المستخدمين
 function displayUsers() {
   let transaction = db.transaction("users", "readonly");
   let store = transaction.objectStore("users");
 
   let request = store.getAll();
   request.onsuccess = function () {
-    let userList = document.getElementById("userList");
-    userList.innerHTML = "";
-
-    request.result.forEach((user) => {
-      let li = document.createElement("li");
-      li.innerHTML = `${user.name} <button class="delete-btn" data-id="${user.id}">حذف</button>`;
-      userList.appendChild(li);
-    });
-
-    // إضافة حدث الحذف بعد إنشاء القائمة
-    document.querySelectorAll(".delete-btn").forEach((button) => {
-      button.addEventListener("click", function (event) {
-        let userId = Number(event.target.getAttribute("data-id"));
-        deleteUser(userId);
-      });
-    });
+    renderUserList(request.result);
   };
 }
 
-// حذف مستخدم
+function renderUserList(users) {
+  let searchValue = document.getElementById("search").value.toLowerCase();
+  let userList = document.getElementById("userList");
+  userList.innerHTML = "";
+
+  users.forEach((user) => {
+    if (user.name.toLowerCase().includes(searchValue)) {
+      let li = document.createElement("li");
+      li.innerHTML = `
+        <div>${user.name}</div>
+        <div>
+          <button class="update-btn" data-id="${user.id}" data-name="${user.name}">Update</button>
+          <button class="delete-btn" data-id="${user.id}">Delete</button>
+        </div>
+      `;
+      userList.appendChild(li);
+    }
+  });
+
+  addEventListeners();
+}
+
 function deleteUser(id) {
   let transaction = db.transaction("users", "readwrite");
   let store = transaction.objectStore("users");
@@ -70,6 +75,38 @@ function deleteUser(id) {
   store.delete(id);
 
   transaction.oncomplete = function () {
-    displayUsers(); // تحديث القائمة بعد الحذف مباشرة
+    displayUsers();
+  };
+}
+
+function updateUser() {
+  let newName = document.getElementById("username").value;
+  if (newName.trim() === "" || selectedUserId === null) return;
+
+  let transaction = db.transaction("users", "readwrite");
+  let store = transaction.objectStore("users");
+
+  let request = store.get(selectedUserId);
+  request.onsuccess = function () {
+    let user = request.result;
+    user.name = newName;
+    store.put(user);
+
+    transaction.oncomplete = function () {
+      document.getElementById("username").value = "";
+      document.getElementById("updateBtn").style.display = "none";
+      selectedUserId = null;
+      displayUsers();
+    };
+  };
+}
+
+function searchUsers() {
+  let transaction = db.transaction("users", "readonly");
+  let store = transaction.objectStore("users");
+
+  let request = store.getAll();
+  request.onsuccess = function () {
+    renderUserList(request.result);
   };
 }
