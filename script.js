@@ -74,7 +74,7 @@ function displayUsers() {
   };
 }
 
-// حذف مستخدم
+ 
 function deleteUser(id) {
   let transaction = db.transaction("users", "readwrite");
   let store = transaction.objectStore("users");
